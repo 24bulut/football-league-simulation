@@ -23,20 +23,31 @@ class PredictionService
 
     /**
      * Calculate championship predictions.
-     * Formula: Score = (Points × 3) + MaxPossiblePoints + GoalDifference
+     * Teams that mathematically cannot win will have 0%.
      */
     public function calculatePredictions(League $league): Collection
     {
         $standings = $this->leagueStandingRepository->getByLeague($league);
         $remainingCount = $this->countRemainingMatchesPerTeam($league);
 
-        // Calculate scores
-        $predictions = $standings->map(fn($s) => [
-            'team_id' => $s->team_id,
-            'team_name' => $s->team->name,
-            'current_points' => $s->points,
-            'score' => $this->calculateScore($s, $remainingCount[$s->team_id] ?? 0),
-        ]);
+        $highestCurrentPoints = $standings->max('points');
+
+        // Calculate max possible points and determine if team can still win
+        $predictions = $standings->map(function ($s) use ($remainingCount, $highestCurrentPoints) {
+            $remaining = $remainingCount[$s->team_id] ?? 0;
+            $maxPossiblePoints = $s->points + ($remaining * 3);
+            
+            $canWin = $maxPossiblePoints >= $highestCurrentPoints;
+
+            return [
+                'team_id' => $s->team_id,
+                'team_name' => $s->team->name,
+                'current_points' => $s->points,
+                'max_possible_points' => $maxPossiblePoints,
+                'can_win' => $canWin,
+                'score' => $canWin ? $this->calculateScore($s, $remaining) : 0,
+            ];
+        });
 
         return $this->convertToPercentages($predictions);
     }
@@ -73,23 +84,28 @@ class PredictionService
 
     private function convertToPercentages(Collection $predictions): Collection
     {
-        $totalScore = $predictions->sum('score');
+        // Only count scores from teams that can still win
+        $totalScore = $predictions->where('can_win', true)->sum('score');
 
         if ($totalScore <= 0) {
-            $equal = (int) round(100 / max($predictions->count(), 1));
+            $teamsCanWin = $predictions->where('can_win', true)->count();
+            $equal = $teamsCanWin > 0 ? (int) round(100 / $teamsCanWin) : 0;
+            
             return $predictions->map(fn($p) => [
                 'team_id' => $p['team_id'],
                 'team_name' => $p['team_name'],
                 'current_points' => $p['current_points'],
-                'prediction_percentage' => $equal,
-            ])->values();
+                'prediction_percentage' => $p['can_win'] ? $equal : 0,
+            ])->sortByDesc('current_points')->values();
         }
 
         return $predictions->map(fn($p) => [
             'team_id' => $p['team_id'],
             'team_name' => $p['team_name'],
             'current_points' => $p['current_points'],
-            'prediction_percentage' => (int) round(($p['score'] / $totalScore) * 100),
+            'prediction_percentage' => $p['can_win'] 
+                ? (int) round(($p['score'] / $totalScore) * 100) 
+                : 0,
         ])->sortByDesc('prediction_percentage')->values();
     }
 }

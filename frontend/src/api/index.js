@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -28,4 +28,3 @@ export default {
   getMatchesByWeek: (week) => api.get(`/matches/week/${week}`),
   updateMatch: (matchId, data) => api.put(`/matches/${matchId}`, data),
 }
-
