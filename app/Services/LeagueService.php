@@ -43,7 +43,7 @@ class LeagueService
 
             $this->fixtureGenerator->generate($league);
 
-            return $this->leagueRepository->findWithAllDetails($league->id);
+            return $this->leagueRepository->find($league->id);
         });
     }
 
@@ -90,7 +90,7 @@ class LeagueService
     public function playAllWeeks(League $league): League
     {
         while (!$league->isCompleted()) {
-            $league = $this->playNextWeek($league);
+            $this->playNextWeek($league);
         }
 
         return $league;
