@@ -13,6 +13,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use App\DTOs\LeagueDTO;
 use App\DTOs\GameMatchDTO;
+use InvalidArgumentException;
+
 class LeagueService
 {
     public function __construct(
@@ -21,8 +23,7 @@ class LeagueService
         private LeagueStandingRepositoryInterface $leagueStandingRepository,
         private FixtureGeneratorService $fixtureGenerator,
         private MatchSimulationService $matchSimulation,
-        private StandingsCalculatorService $standingsCalculator,
-        private PredictionService $predictionService
+        private StandingsCalculatorService $standingsCalculator
     ) {}
 
     /**
@@ -42,7 +43,7 @@ class LeagueService
 
             $this->fixtureGenerator->generate($league);
 
-            return $this->leagueRepository->find($league->id);
+            return $this->leagueRepository->findWithAllDetails($league->id);
         });
     }
 
@@ -59,10 +60,10 @@ class LeagueService
      * 
      * Bir sonraki haftanın maçlarını simüle eder.
      */
-    public function playNextWeek(League $league): League
+    public function playNextWeek(League $league): Array
     {
         if ($league->isCompleted()) {
-            return $league;
+            return ['matches' => [], 'status' => LeagueStatus::COMPLETED];
         }
 
         return DB::transaction(function () use ($league) {
@@ -77,12 +78,9 @@ class LeagueService
             // Recalculate standings
             $this->standingsCalculator->recalculate($league);
 
-            // Update league status
-            $status = $nextWeek >= $league->getTotalWeeks()
-                ? LeagueStatus::COMPLETED
-                : LeagueStatus::IN_PROGRESS;
+            $league = $this->leagueRepository->moveOnToNextWeek($league);
 
-            return $this->leagueRepository->updateStatus($league, $status, $nextWeek);
+            return ['matches' => $matches, 'status' => $league->status];
         });
     }
 
@@ -115,36 +113,13 @@ class LeagueService
     }
 
     /**
-     * Get current league status with all data.
-     */
-    public function getLeagueStatus(League $league): array
-    {
-        $standings = $this->standingsCalculator->getStandings($league);
-        
-        $currentWeekMatches = $this->gameMatchRepository->getByWeek($league, $league->current_week);
-
-        $predictions = null;
-        if ($this->predictionService->shouldShowPredictions($league)) {
-            $predictions = $this->predictionService->calculatePredictions($league);
-        }
-
-        return [
-            'league' => $league,
-            'current_week' => $league->current_week,
-            'total_weeks' => $league->getTotalWeeks(),
-            'status' => $league->status,
-            'standings' => $standings,
-            'current_week_matches' => $currentWeekMatches,
-            'predictions' => $predictions,
-            'is_completed' => $league->isCompleted(),
-        ];
-    }
-
-    /**
      * Get matches for a specific week.
      */
     public function getWeekMatches(League $league, int $week): Collection
     {
+        if ($week > $league->getTotalWeeks()) {
+            throw new InvalidArgumentException('Week is out of range.');
+        }
         return $this->gameMatchRepository->getByWeek($league, $week);
     }
 

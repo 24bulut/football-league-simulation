@@ -64,12 +64,11 @@ class LeagueServiceTest extends TestCase
         $this->createTeams(4);
         $league = $this->service->startLeague();
 
-        $updatedLeague = $this->service->playNextWeek($league);
+        $result = $this->service->playNextWeek($league);
 
-        $this->assertEquals(1, $updatedLeague->current_week);
-        $this->assertEquals(LeagueStatus::IN_PROGRESS, $updatedLeague->status);
+        $this->assertEquals(LeagueStatus::IN_PROGRESS, $result['status']);
 
-        $week1Matches = $updatedLeague->matches->where('week', 1);
+        $week1Matches = $result['matches'];
         foreach ($week1Matches as $match) {
             $this->assertEquals(MatchStatus::PLAYED, $match->status);
             $this->assertNotNull($match->home_score);
@@ -84,11 +83,10 @@ class LeagueServiceTest extends TestCase
         $league = $this->service->startLeague();
 
         for ($i = 0; $i < 6; $i++) {
-            $league = $this->service->playNextWeek($league);
+            $result = $this->service->playNextWeek($league);
         }
 
-        $this->assertEquals(6, $league->current_week);
-        $this->assertEquals(LeagueStatus::COMPLETED, $league->status);
+        $this->assertEquals(LeagueStatus::COMPLETED, $result['status']);
     }
 
     #[Test]

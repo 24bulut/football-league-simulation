@@ -20,23 +20,28 @@ class LeagueRepository implements LeagueRepositoryInterface
 
     public function find(int $id): ?League
     {
-        return $this->model
-            ->with(['standings.team', 'matches.homeTeam', 'matches.awayTeam'])
-            ->find($id);
+        return $this->model->find($id);
+    }
+
+    public function findWithAllDetails(int $id): ?League
+    {
+        return $this->model->withAllDetails()->find($id);
     }
 
     public function getLatest(): ?League
     {
-        return $this->model
-            ->with(['standings.team', 'matches.homeTeam', 'matches.awayTeam'])
-            ->latest()
-            ->first();
+        return $this->model->latest()->first();
+    }
+
+    public function getLatestWithAllDetails(): ?League
+    {
+        return $this->model->withAllDetails()->latest()->first();
     }
 
     public function update(League $league, LeagueDTO $data): League
     {
         $league->update($data->toArray());
-        return $league->fresh(['standings.team', 'matches.homeTeam', 'matches.awayTeam']);
+        return $league->fresh();
     }
 
     public function updateStatus(League $league, LeagueStatus $status, int $week): League
@@ -45,7 +50,13 @@ class LeagueRepository implements LeagueRepositoryInterface
             'status' => $status,
             'current_week' => $week,
         ]);
-        return $league->fresh(['standings.team', 'matches.homeTeam', 'matches.awayTeam']);
+        return $this->find($league->id);
+    }
+
+    public function moveOnToNextWeek(League $league): League
+    {
+        $nextWeek = $league->current_week + 1;
+        $league->update(['current_week' => $nextWeek, 'status' => $nextWeek >= $league->getTotalWeeks() ? LeagueStatus::COMPLETED : LeagueStatus::IN_PROGRESS]);
+        return $league->fresh();
     }
 }
-
