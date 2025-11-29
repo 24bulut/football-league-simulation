@@ -1,59 +1,83 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Football League Simulation
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A full-stack application that simulates a football league with 4 teams playing a double round-robin tournament (6 weeks, 12 matches total).
 
-## About Laravel
+## Tech Stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+**Backend:** Laravel 12, PHP 8.4, SQLite  
+**Frontend:** Vue 3, Tailwind CSS, Vite
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Generate fixtures using Round-Robin algorithm (Circle Method)
+- Simulate matches with realistic scores (Poisson distribution)
+- Calculate standings with Premier League rules
+- Predict championship probabilities (0% for mathematically eliminated teams)
+- Edit match scores manually
 
-## Learning Laravel
+## Quick Start
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+```bash
+# Backend
+composer install
+cp .env.example .env
+php artisan migrate --seed
+php artisan serve
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+# Frontend
+cd frontend
+npm install
+npm run dev
+```
 
-## Laravel Sponsors
+## Backend Architecture
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```
+app/
+├── Http/
+│   ├── Controllers/Api/    # REST API controllers
+│   ├── Requests/Api/       # Form request validation
+│   └── Resources/          # API response formatting
+├── Services/               # Business logic
+│   ├── FixtureGeneratorService    # Round-robin scheduling
+│   ├── MatchSimulationService     # Score generation (Poisson)
+│   ├── StandingsCalculatorService # Points & rankings
+│   ├── PredictionService          # Championship odds
+│   └── LeagueService              # Orchestrator
+├── Repositories/           # Data access layer
+├── Models/                 # Eloquent models
+├── Enums/                  # Status enums
+└── DTOs/                   # Data transfer objects
+```
 
-### Premium Partners
+## API Endpoints
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /api/teams | List teams |
+| POST | /api/league/start | Start new league |
+| POST | /api/league/reset | Reset league |
+| GET | /api/matches | Get all matches |
+| PUT | /api/matches/{id} | Update match score |
+| GET | /api/standings | Get standings |
+| GET | /api/predictions | Get predictions |
+| POST | /api/simulation/next-week | Play next week |
+| POST | /api/simulation/play-all | Play all remaining |
 
-## Contributing
+## Algorithms
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+**Fixture Generation:** Circle Method - fixes one team, rotates others to create balanced schedule.
 
-## Code of Conduct
+**Match Simulation:** 
+```
+Expected Goals = 1.5 × (team_power / 85) × opponent_goalkeeper_factor
+Actual Goals = Poisson(expected)
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+**Predictions:** Teams with `max_possible_points < leader_current_points` get 0%.
 
-## Security Vulnerabilities
+## Running Tests
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan test
+```
