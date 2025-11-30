@@ -22,8 +22,9 @@ jobs:
             cd ${{ secrets.PROJECT_PATH }}
             
             # Pull latest changes
-            git pull origin main
-            
+            git fetch origin
+            git reset --hard origin/main
+
             # Rebuild and restart containers
             # docker compose down
             # docker compose build --no-cache
@@ -36,6 +37,9 @@ jobs:
             docker exec insider-app php artisan config:cache
             docker exec insider-app php artisan route:cache
             docker exec insider-app php artisan view:cache
+
+            #Run tests
+            # docker exec insider-app php artisan test
             
             echo "✅ Deployment completed successfully!"
 
