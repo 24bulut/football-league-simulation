@@ -1,4 +1,5 @@
 services:
+  name: insider-league-simulation
   app:
     build:
       context: .
